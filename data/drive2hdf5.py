@@ -7,28 +7,40 @@ import os
 import sys
 import zipfile
 from pathlib import Path
+from tqdm import tqdm
 
 import h5py
 
 import numpy as np
 import pickle
 from PIL import Image
+from PIL.ImageOps import pad as pil_pad
+
+from comet_ml import Experiment
 
 from skimage import data, color
 from skimage.transform import hough_circle, hough_circle_peaks
 from skimage.feature import canny
-from PIL.ImageOps import pad as pil_pad
 
 
 
 def main(argv=None):
 
+    # Initialize New Comet Experiment
+    exp = Experiment(project_name="aiscope-ml", display_summary_level=0)
+
+    # Log arguments
+    exp.log_parameters(vars(args))
+    import ipdb; ipdb.set_trace()
+
     # Extract ZIP
     if args.data_zip:
+        print(f"Extracting {args.data_zip}...")
         with zipfile.ZipFile(args.data_zip, 'r') as f_zip:
             f_zip.extractall(args.data_dir)
 
     # Read data
+    print(f"Reading images...")
     data_paths = []
     for ext in ["jpg", "jpeg"]:
         data_paths.extend(list(Path(args.data_dir).glob(r"**/image_*.{}".format(ext))))
@@ -36,16 +48,18 @@ def main(argv=None):
     print(f"Found {n_images} images in {args.data_dir}.")
 
     # Discard images without mask
-    for idx in range(n_images):
+    print(f"Discarding images without a corresponding mask...")
+    for idx in tqdm(range(n_images)):
         mask_path = data_paths[idx].parent / Path(data_paths[idx].stem.replace("image_", "mask_") + ".png")
         if not mask_path.exists():
             del data_paths[idx]
 
     # Get image sizes
     if args.height is None and args.width is None:
+        print(f"Height and width will be determine by the median...")
         heights = []
         widths = []
-        for f in data_paths:
+        for f in tqdm(data_paths):
             img_pil = Image.open(f).convert('RGBA')
             heights.append(img_pil.height)
             widths.append(img_pil.width)
@@ -61,6 +75,7 @@ def main(argv=None):
         else:
             width = args.height
     n_channels = 4
+    print(f"Images shape: ({height} x {width} {n_channels}")
 
     # Open HDF5 file
     with h5py.File(args.output_hdf5, 'w') as hdf5_file:
@@ -79,11 +94,13 @@ def main(argv=None):
         # Permute the indices in order to shuffle the images in the HDF5 file
         if args.shuffle:
             indices_tr = np.random.permutation(n_images)
+            print(f"Indices will be shuffled...")
         else:
             indices_tr = range(n_images)
 
         # Fill data
-        for idx in range(n_images):
+        print(f"Iterating over images...")
+        for idx in tqdm(range(n_images)):
             img_pil_rgba = Image.open(data_paths[idx]).convert('RGBA')
             mask_path = data_paths[idx].parent / Path(data_paths[idx].stem.replace("image_", "mask_") + ".png")
             mask_pil_rgba = Image.open(mask_path).convert('RGBA')
@@ -100,7 +117,7 @@ def main(argv=None):
             img_resized.save(Path(args.output_dir) / "image_{}.png".format(idx))
             mask_resized.save(Path(args.output_dir) / "mask{}.png".format(idx))
 
-            if idx > 5:
+            if idx > args.max_n_images:
                 break
 
 
@@ -230,5 +247,12 @@ if __name__ == '__main__':
         default=20,
         help='The factor to downscale the image before applying the Hough transform'
     )
+    parser.add_argument(
+        '--max_n_images',
+        type=int,
+        default=None,
+        help='Maximum number of images to process, for debugging'
+    )
     args, unparsed = parser.parse_known_args()
+    print("Args:\n" + "\n".join([f"    {k:20}: {v}" for k, v in vars(args).items()]))
     main()
