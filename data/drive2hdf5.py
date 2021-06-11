@@ -31,7 +31,6 @@ def main(argv=None):
 
     # Log arguments
     exp.log_parameters(vars(args))
-    import ipdb; ipdb.set_trace()
 
     # Extract ZIP
     if args.data_zip:
@@ -49,10 +48,14 @@ def main(argv=None):
 
     # Discard images without mask
     print(f"Discarding images without a corresponding mask...")
+    del_list = []
     for idx in tqdm(range(n_images)):
         mask_path = data_paths[idx].parent / Path(data_paths[idx].stem.replace("image_", "mask_") + ".png")
         if not mask_path.exists():
-            del data_paths[idx]
+            del_list.append(idx)
+    for idx in del_list:
+        del data_paths[idx]
+    import ipdb; ipdb.set_trace()
 
     # Get image sizes
     if args.height is None and args.width is None:
@@ -117,7 +120,7 @@ def main(argv=None):
             img_resized.save(Path(args.output_dir) / "image_{}.png".format(idx))
             mask_resized.save(Path(args.output_dir) / "mask{}.png".format(idx))
 
-            if idx > args.max_n_images:
+            if args.max_n_images and idx > args.max_n_images:
                 break
 
 
