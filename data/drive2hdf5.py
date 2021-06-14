@@ -49,12 +49,15 @@ def main(argv=None):
     # Discard images without mask
     print(f"Discarding images without a corresponding mask...")
     del_list = []
-    for idx in tqdm(range(n_images)):
-        mask_path = data_paths[idx].parent / Path(data_paths[idx].stem.replace("image_", "mask_") + ".png")
+    for path in tqdm(data_paths):
+        mask_path = Path(str(path).replace("image_", "mask_").replace('jpg', 'png'))
         if not mask_path.exists():
-            del_list.append(idx)
-    for idx in del_list:
-        del data_paths[idx]
+            print(f"{mask_path} not found\n{path} will not be included in the data set")
+            del_list.append(path)
+    for path in del_list:
+        data_paths.remove(path)
+    n_images = len(data_paths)
+    print(f"Number of images after removal of missing masks: {n_images}")
     import ipdb; ipdb.set_trace()
 
     # Get image sizes
