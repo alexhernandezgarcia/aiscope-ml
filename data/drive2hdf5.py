@@ -57,9 +57,6 @@ def main(argv=None):
         data_paths.remove(path)
     n_images = len(data_paths)
     print(f"Number of images after removal of missing masks: {n_images}")
-    import ipdb
-
-    ipdb.set_trace()
 
     # Get image sizes
     if args.height is None and args.width is None:
@@ -110,11 +107,9 @@ def main(argv=None):
 
         # Fill data
         print(f"Iterating over images...")
-        for idx in tqdm(range(n_images)):
-            img_pil_rgba = Image.open(data_paths[idx]).convert("RGBA")
-            mask_path = data_paths[idx].parent / Path(
-                data_paths[idx].stem.replace("image_", "mask_") + ".png"
-            )
+        for path in tqdm(data_paths):
+            img_pil_rgba = Image.open(path).convert("RGBA")
+            mask_path = Path(str(path).replace("image_", "mask_").replace("jpg", "png"))
             mask_pil_rgba = Image.open(mask_path).convert("RGBA")
             img_cropped, mask_cropped, _ = crop_circle(
                 img_pil_rgba,
@@ -133,6 +128,10 @@ def main(argv=None):
             # Store images
             img_resized.save(Path(args.output_dir) / "image_{}.png".format(idx))
             mask_resized.save(Path(args.output_dir) / "mask{}.png".format(idx))
+            f_filename = open(Path(args.output_dir) / "filename_{}.png".format(idx),
+            "w")
+            f_filename.write(path)
+            f_filename.close()
 
             if args.max_n_images and idx > args.max_n_images:
                 break
