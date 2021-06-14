@@ -107,7 +107,7 @@ def main(argv=None):
 
         # Fill data
         print(f"Iterating over images...")
-        for path in tqdm(data_paths):
+        for idx, path in enumerate(tqdm(data_paths)):
             img_pil_rgba = Image.open(path).convert("RGBA")
             mask_path = Path(str(path).replace("image_", "mask_").replace("jpg", "png"))
             mask_pil_rgba = Image.open(mask_path).convert("RGBA")
@@ -130,7 +130,7 @@ def main(argv=None):
             mask_resized.save(Path(args.output_dir) / "mask{}.png".format(idx))
             f_filename = open(Path(args.output_dir) / "filename_{}.png".format(idx),
             "w")
-            f_filename.write(path)
+            f_filename.write(str(path))
             f_filename.close()
 
             if args.max_n_images and idx > args.max_n_images:
